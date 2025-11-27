@@ -1,13 +1,431 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html lang="vi">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Personal Website</title>
-    <link rel="stylesheet" href="styles.css">
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Bong bóng xà phòng — Click để vỡ</title>
+  <style>
+    :root{ --bg:#081229; }
+    html,body{height:100%;margin:0;padding:0;font-family:system-ui,Segoe UI,Roboto,"Helvetica Neue",Arial}
+    body{
+      /* background image */
+      background-image: url("image/B.jpg");
+      background-size: cover;
+      background-position: center;
+      overflow:hidden;
+      display:flex;align-items:center;justify-content:center;color:#fff;
+      position:relative;
+    }
+
+    .sky{ position:relative; width:100vw;height:100vh; overflow:hidden; }
+
+    /* --- bubble: made more visible --- */
+    .bubble{
+      position:absolute;
+      bottom:-150px;
+      border-radius:50%;
+      pointer-events:auto;
+      cursor:pointer;
+      transform-origin:center center;
+      will-change:transform,opacity;
+      /* stronger inner highlight + brighter outer border */
+      background: radial-gradient(circle at 25% 25%, rgba(255,255,255,0.98), rgba(255,255,255,0.6) 6%, rgba(200,230,255,0.30) 18%, rgba(160,200,255,0.12) 40%, rgba(60,120,200,0.08) 70%, rgba(0,0,0,0.02));
+      mix-blend-mode: screen;
+      opacity:1;
+      transition: transform 220ms ease, opacity 220ms linear;
+      box-shadow:
+        0 10px 30px rgba(0,0,0,0.45),
+        inset -16px -12px 28px rgba(255,255,255,0.18),
+        0 6px 18px rgba(60,130,200,0.18);
+      border: 3px solid rgba(255,255,255,0.18);
+      filter: drop-shadow(0 8px 22px rgba(0,0,0,0.45)) saturate(1.05);
+      z-index: 60; /* ensure bubbles are above video */
+    }
+    .bubble::after{
+      content:"";
+      position:absolute;left:0;top:0;right:0;bottom:0;border-radius:50%;
+      background: linear-gradient(135deg, rgba(255,255,255,0.22), rgba(255,200,255,0.06) 25%, rgba(200,240,255,0.06) 55%, rgba(180,240,255,0.02));
+      mix-blend-mode: overlay;
+      pointer-events:none;
+    }
+
+    @keyframes rise{
+      0%{ transform: translateY(0) translateX(0) scale(1); }
+      30%{ transform: translateY(-20vh) translateX(var(--sway)) scale(var(--s)); }
+      60%{ transform: translateY(-45vh) translateX(calc(var(--sway) * -1)) scale(calc(var(--s) * 1.03)); }
+      100%{ transform: translateY(-110vh) translateX(var(--sway)) scale(calc(var(--s) * 1.08)); opacity:0.06 }
+    }
+
+    .bubble.pop{
+      animation:none !important;
+      transform: scale(1.6) translateY(-8px);
+      opacity:0;
+      transition: transform 220ms ease-out, opacity 220ms linear;
+    }
+    .bubble.pop::before{
+      content:"";
+      position:absolute;left:50%;top:50%;width:6px;height:6px;border-radius:50%;
+      box-shadow: 0 -14px 0 0 rgba(255,255,255,0.9), 10px -10px 0 0 rgba(255,230,200,0.9), -10px -10px 0 0 rgba(200,230,255,0.9), 14px 4px 0 0 rgba(200,200,255,0.7), -14px 4px 0 0 rgba(255,200,220,0.7);
+      transform: translate(-50%,-50%) scale(1);
+      opacity:1; transition: opacity 220ms linear;
+    }
+
+    .help{
+      position:fixed;left:12px;bottom:12px;padding:8px 12px;border-radius:10px;background:rgba(255,255,255,0.06);backdrop-filter: blur(4px);font-size:13px;color:#dfeffc
+    }
+
+    .controls{
+      position:fixed;right:12px;bottom:12px;padding:10px;border-radius:10px;background:rgba(0,0,0,0.25);backdrop-filter: blur(4px);color:#dfeffc;font-size:13px;display:flex;align-items:center;gap:8px
+    }
+
+    .controls button{margin-left:6px;padding:6px 8px;border-radius:8px;border:0;background:rgba(255,255,255,0.06);color:inherit;cursor:pointer}
+
+    /* center circular video wrapper - fixed responsive size (NOT user adjustable) */
+    .center-video {
+      position: fixed;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: min(60vw, 720px);
+      height: min(60vw, 720px);
+      /* ensure fits vertically too */
+      max-height: 78vh;
+      border-radius: 50%;
+      object-fit: cover;
+      /* box-shadow: 0 10px 30px rgba(0,0,0,0.55); */
+      /* border: 6px solid rgba(255,255,255,0.08); */
+      z-index: 10; /* below bubbles so bubbles are clearer */
+      background: #000;
+      overflow: hidden;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      pointer-events: none; /* let clicks pass through to bubbles */
+    }
+    .center-video video, .center-video iframe {
+      width:100%;
+      height:100%;
+      border-radius:50%;
+      object-fit:cover;
+      display:block;
+      pointer-events: auto; /* allow play/pause if needed programmatically */
+    }
+
+    .popup-mask{
+      position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,0.45);z-index:9999;
+    }
+    .popup-box{
+      background:linear-gradient(180deg,#00233a,#00344f);
+      color:#fff;padding:20px 22px;border-radius:14px;min-width:300px;max-width:90vw;text-align:center;box-shadow:0 10px 30px rgba(0,0,0,0.6)
+    }
+    .popup-title{font-size:18px;margin-bottom:10px;font-weight:600}
+    .popup-wish{font-size:16px;margin:8px 0;padding:10px;border-radius:10px;background:rgba(255,255,255,0.03)}
+    .popup-meta{font-size:13px;color:#bfe6ff;margin-top:6px}
+    .popup-close{margin-top:12px;padding:8px 14px;border-radius:10px;border:0;background:#fff;color:#002b3a;cursor:pointer;font-weight:600}
+
+    @media (max-width:600px){
+      .help,.controls{font-size:12px;padding:8px}
+      .center-video { width: 72vw; height: 72vw; max-height: 72vh; }
+    }
+  </style>
 </head>
-<frameset rows="15%, 85%">
-    <frame src="menu.html" name="menuFrame" noresize scrolling="no">
-    <frame src="home.html" name="mainFrame">
-</frameset>
+<body>
+  <div class="sky" id="sky"></div>
+
+  <!-- center circular video wrapper - no controls UI, autoplay muted -->
+  <div id="centerVideoWrap" class="center-video" aria-hidden="false">
+    <video
+      id="centerVideo"
+      src="image/A.mp4"      /* <-- thay đường dẫn video tại đây */
+      playsinline
+      muted
+      loop
+      autoplay
+      preload="auto"
+      crossorigin="anonymous"
+    ></video>
+  </div>
+
+  <div class="help">Chạm / click bong bóng để vỡ</div>
+
+  <div class="controls">
+    Số bong bóng: <input id="count" type="number" value="0" style="width:70px;padding:4px;border-radius:6px;border:0;background:rgba(255,255,255,0.06);color:inherit">
+    <button id="regen">Tạo lại</button>
+    <button id="refetch">Tải lại từ DB</button>
+  </div>
+ 
+
+  <!-- popup hiện lời chúc -->
+  <div id="wishPopup" style="display:none;"></div>
+
+  <script>
+    // ====== THAY CHỖ NÀY BẰNG THÔNG TIN SUPABASE CỦA BẠN ======
+    const SUPABASE_URL = "https://lrhppcbzghebhpgreyzt.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxyaHBwY2J6Z2hlYmhwZ3JleXp0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQwNjU3MzEsImV4cCI6MjA3OTY0MTczMX0.JJFH4BzuEZ5cPU6ng_vHxziAbWMxwDPLCj2sOrdCxrQ";
+    // =======================================================
+    const API_BASE = SUPABASE_URL + "/rest/v1/messages";
+    const HEADERS = {
+      "apikey": SUPABASE_ANON_KEY,
+      "Authorization": "Bearer " + SUPABASE_ANON_KEY,
+      "Accept": "application/json",
+      "Content-Type": "application/json"
+    };
+
+    /* ------------------ video auto sizing (no user controls) ------------------ */
+    const centerWrap = document.getElementById('centerVideoWrap');
+    const centerVideo = document.getElementById('centerVideo');
+    function applyVideoResponsiveSize() {
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+      // Use a size that's relative but clamped
+      const size = Math.min(Math.round(Math.min(vw * 0.60, vh * 0.78)), 820);
+      centerWrap.style.width = size + 'px';
+      centerWrap.style.height = size + 'px';
+    }
+    window.addEventListener('resize', applyVideoResponsiveSize);
+    applyVideoResponsiveSize();
+
+    // try autoplay on load (muted so browsers allow)
+    (function tryAutoPlayOnLoad() {
+      centerVideo.muted = true;
+      const p = centerVideo.play();
+      if (p && p.catch) p.catch(err => console.warn("Autoplay blocked:", err));
+    })();
+
+    /* ------------------ bubble / wishes code ------------------ */
+    const sky = document.getElementById('sky');
+    const regenBtn = document.getElementById('regen');
+    const refetchBtn = document.getElementById('refetch');
+    const countInput = document.getElementById('count');
+
+    let wishes = []; // danh sách lời chúc lấy từ DB, mỗi phần tử có shape {name,course,message,created_at, popped:false}
+    let total = 0;
+    let remaining = 0;
+
+    async function loadWishesFromDB(){
+      try {
+        const url = API_BASE + "?select=name,course,message,created_at&order=created_at.desc";
+        const r = await fetch(url, { headers: HEADERS });
+        if (!r.ok) {
+          const txt = await r.text();
+          throw new Error("API error: " + txt);
+        }
+        const data = await r.json();
+        if (!Array.isArray(data)) throw new Error("Invalid data from API");
+        wishes = data.map(d => ({
+          name: d.name || "Ẩn danh",
+          course: d.course || d.class || "",
+          message: d.message || "",
+          created_at: d.created_at || null,
+          popped: false
+        }));
+        shuffleArray(wishes);
+        total = wishes.length;
+        remaining = total;
+        countInput.value = total;
+        return wishes;
+      } catch (err) {
+        console.error("Failed to load wishes:", err);
+        alert("Không thể tải lời chúc từ cơ sở dữ liệu. Xem console để biết chi tiết.");
+        wishes = [];
+        total = 0;
+        remaining = 0;
+        countInput.value = 0;
+        return [];
+      }
+    }
+
+    function shuffleArray(a){
+      for(let i=a.length-1;i>0;i--){
+        const j = Math.floor(Math.random()*(i+1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+    }
+
+    function randomRange(min,max){ return Math.random()*(max-min)+min; }
+
+    function createBubbleWithWish(idx) {
+      if (idx >= 0 && wishes[idx] && wishes[idx].popped) return null;
+      if (document.querySelector(`.bubble[data-wish-index="${idx}"]`)) return null;
+
+      const b = document.createElement('div');
+      b.className = 'bubble';
+
+      // make bubbles slightly larger on average to be more visible
+      const size = Math.round(randomRange(72, 150));
+      b.style.width = size + 'px';
+      b.style.height = size + 'px';
+
+      // avoid creating bubbles overlapping the central video area:
+      // calculate left in vw but try to avoid central 30% area
+      let left;
+      const avoidCenter = true;
+      if (avoidCenter) {
+        const leftCandidate = randomRange(3, 96);
+        // if near center (45-55), shift slightly left/right
+        if (leftCandidate > 36 && leftCandidate < 64) {
+          left = (leftCandidate < 50) ? leftCandidate - randomRange(12,18) : leftCandidate + randomRange(12,18);
+        } else left = leftCandidate;
+      } else left = randomRange(3, 94);
+      b.style.left = Math.min(Math.max(left, 2), 96) + 'vw';
+
+      const sway = (randomRange(-8,8)) + 'vw';
+      b.style.setProperty('--sway', sway);
+
+      const s = (randomRange(95,130)/100).toFixed(2);
+      b.style.setProperty('--s', s);
+
+      const duration = Math.round(randomRange(9000, 18000));
+      const delay = Math.round(randomRange(0, 2200));
+      b.style.animation = `rise ${duration}ms linear ${delay}ms forwards`;
+
+      b.style.opacity = 1;
+
+      b.dataset.wishIndex = idx;
+
+      b.addEventListener('pointerdown', (e) => {
+        e.stopPropagation();
+        popBubble(b);
+      }, {passive:true});
+
+      b.addEventListener('animationend', () => {
+        if (b.parentElement) b.parentElement.removeChild(b);
+        if (idx >= 0 && wishes[idx] && !wishes[idx].popped) {
+          const delayRecreate = Math.round(randomRange(300, 1200));
+          setTimeout(() => {
+            if (!document.querySelector(`.bubble[data-wish-index="${idx}"]`)) {
+              createBubbleWithWish(idx);
+            }
+          }, delayRecreate);
+        }
+      });
+
+      sky.appendChild(b);
+      return b;
+    }
+
+    function spawnAllWishes() {
+      document.querySelectorAll('.bubble').forEach(el=>el.remove());
+      remaining = total;
+      for (let i = 0; i < total; i++) {
+        setTimeout(() => {
+          createBubbleWithWish(i);
+        }, Math.random() * 600);
+      }
+    }
+
+    function popBubble(b){
+      if (!b || b.classList.contains('pop')) return;
+      b.classList.add('pop');
+
+      const idx = Number(b.dataset.wishIndex);
+      const wish = wishes[idx] || { message: 'Không có lời chúc', name:'', course:'' };
+      showWishPopup(wish);
+
+      if (idx >= 0 && wishes[idx]) {
+        wishes[idx].popped = true;
+      }
+
+      remaining--;
+      setTimeout(()=>{ if (b.parentElement) b.parentElement.removeChild(b); }, 260);
+
+      if (remaining <= 0) showFinishPopup();
+    }
+
+    function showWishPopup(wish){
+      const esc = s => {
+        if (!s) return "";
+        return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+      };
+
+      const wrap = document.createElement('div');
+      wrap.className = 'popup-mask';
+      wrap.style.opacity = '0';
+      wrap.style.transition = 'opacity 180ms ease';
+
+      const box = document.createElement('div');
+      box.className = 'popup-box';
+
+      const title = document.createElement('div');
+      title.className = 'popup-title';
+      title.innerHTML = '🎉 Lời chúc';
+
+      const wishDiv = document.createElement('div');
+      wishDiv.className = 'popup-wish';
+      wishDiv.innerHTML = esc(wish.message);
+
+      const meta = document.createElement('div');
+      meta.className = 'popup-meta';
+      meta.innerHTML = esc(wish.name) + (wish.course ? ' — ' + esc(wish.course) : '');
+
+      const close = document.createElement('button');
+      close.className = 'popup-close';
+      close.textContent = 'Đóng';
+      close.onclick = () => {
+        wrap.style.opacity = '0';
+        setTimeout(()=> wrap.remove(), 180);
+      };
+
+      box.appendChild(title);
+      box.appendChild(wishDiv);
+      box.appendChild(meta);
+      box.appendChild(close);
+      wrap.appendChild(box);
+      document.body.appendChild(wrap);
+      requestAnimationFrame(()=> wrap.style.opacity = '1');
+    }
+
+    function showFinishPopup(){
+      const wrap = document.createElement('div');
+      wrap.className = 'popup-mask';
+      const box = document.createElement('div');
+      box.className = 'popup-box';
+      box.innerHTML = `<div class="popup-title">🎉 Bạn đã mở hết lời chúc! 🎉</div>
+                       <div style="margin-top:8px">Nhấn "Chơi lại" để xem lần nữa.</div>`;
+      const btn = document.createElement('button');
+      btn.className = 'popup-close';
+      btn.textContent = 'Chơi lại';
+      btn.onclick = () => {
+        wrap.remove();
+        wishes.forEach(w => { if (w) w.popped = false; });
+        spawnAllWishes();
+      };
+      box.appendChild(btn);
+      wrap.appendChild(box);
+      document.body.appendChild(wrap);
+    }
+
+    regenBtn.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (total <= 0) { alert("Không có lời chúc để tạo bong bóng."); return; }
+      wishes.forEach(w => { if (w) w.popped = false; });
+      shuffleArray(wishes);
+      spawnAllWishes();
+    });
+
+    refetchBtn.addEventListener('click', async (e) => {
+      e.preventDefault();
+      await loadWishesFromDB();
+      if (total > 0) spawnAllWishes();
+    });
+
+    (async function init(){
+      await loadWishesFromDB();
+      if (total <= 0) {
+        countInput.value = 0;
+        const b = createBubbleWithWish(-1);
+        if (b) {
+          b.style.width = '90px';
+          b.style.height = '90px';
+          b.addEventListener('pointerdown', ()=> {
+            showWishPopup({ message: 'Chưa có lời chúc trong cơ sở dữ liệu. Vui lòng thêm lời chúc trong bảng "messages".', name:'Hệ thống', course:'' });
+            b.classList.add('pop'); setTimeout(()=>b.remove(),260);
+          }, {passive:true});
+        }
+        return;
+      }
+      spawnAllWishes();
+    })();
+  </script>
+</body>
 </html>
